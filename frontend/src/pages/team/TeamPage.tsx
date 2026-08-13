@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Plus, Brain, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Users, Plus } from 'lucide-react'
 import api from '../../lib/api'
 import toast from 'react-hot-toast'
+import Modal from '../../components/common/Modal'
 
 export default function TeamPage() {
   const qc = useQueryClient()
@@ -16,7 +17,12 @@ export default function TeamPage() {
 
   const create = useMutation({
     mutationFn: (d: any) => api.post('/teams', d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['teams'] }); setShowCreate(false); toast.success('Team created!') }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['teams'] })
+      setShowCreate(false)
+      setForm({ name: '', description: '' })
+      toast.success('Team created!')
+    }
   })
 
   const healthColor = (score: number) => score >= 80 ? 'var(--color-success)' : score >= 60 ? 'var(--color-warning)' : 'var(--color-danger)'
@@ -55,7 +61,6 @@ export default function TeamPage() {
                   </div>
                 </div>
 
-                {/* Health dimensions */}
                 {Object.keys(dims).length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' }}>
                     {Object.entries(dims).map(([key, val]: any) => (
@@ -72,7 +77,6 @@ export default function TeamPage() {
                   </div>
                 )}
 
-                {/* Members */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {(team.team_members || []).slice(0, 6).map((m: any, i: number) => (
                     <div key={i} className="avatar avatar-sm" title={`${m.employees?.first_name} ${m.employees?.last_name}`}>
@@ -96,18 +100,22 @@ export default function TeamPage() {
         </div>
       )}
 
-      {showCreate && (
-        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2 className="modal-title">Create Team</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowCreate(false)}>✕</button></div>
-            <form onSubmit={e => { e.preventDefault(); create.mutate(form) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="input-group"><label className="input-label">Team Name *</label><input className="input" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Engineering" /></div>
-              <div className="input-group"><label className="input-label">Description</label><textarea className="input" rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ resize: 'vertical' }} /></div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create Team'}</button></div>
-            </form>
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create Team">
+        <form onSubmit={e => { e.preventDefault(); create.mutate(form) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="input-group">
+            <label className="input-label">Team Name *</label>
+            <input className="input" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Engineering" />
           </div>
-        </div>
-      )}
+          <div className="input-group">
+            <label className="input-label">Description</label>
+            <textarea className="input" rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ resize: 'vertical' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create Team'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

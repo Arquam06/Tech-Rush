@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckSquare, Plus, Filter, ArrowUp, Clock, User } from 'lucide-react'
+import { Plus, Clock, User } from 'lucide-react'
 import api from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import Modal from '../../components/common/Modal'
 
 const STATUS_OPTIONS = ['todo', 'in_progress', 'blocked', 'in_review', 'done']
 const PRIORITY_OPTIONS = ['critical', 'high', 'medium', 'low']
@@ -18,7 +19,7 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<any>(null)
   const [form, setForm] = useState({ title: '', priority: 'medium', complexity: 'medium', estimatedHours: '4', dueDate: '', assigneeId: '' })
 
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', statusFilter, myTasksOnly],
     queryFn: () => api.get(`/tasks${statusFilter ? `?status=${statusFilter}` : ''}${myTasksOnly ? `${statusFilter ? '&' : '?'}assigneeId=${employee?.id}` : ''}`).then(r => r.data)
   })
@@ -71,7 +72,6 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Status filter */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <button className={`badge ${!statusFilter ? 'badge-primary' : 'badge-muted'}`} style={{ cursor: 'pointer', padding: '5px 12px', fontSize: '12px' }} onClick={() => setStatusFilter('')}>All</button>
         {STATUS_OPTIONS.map(s => (
@@ -81,7 +81,6 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* Kanban-style columns */}
       {!statusFilter ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px', alignItems: 'start' }}>
           {STATUS_OPTIONS.filter(s => s !== 'done' || grouped['done']?.length > 0).map(status => (
@@ -136,66 +135,52 @@ export default function TasksPage() {
       )}
 
       {/* Create Task Modal */}
-      {showCreate && (
-        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Create Task</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowCreate(false)}>✕</button>
-            </div>
-            <form onSubmit={e => { e.preventDefault(); createTask.mutate({ title: form.title, priority: form.priority, complexity: form.complexity, estimatedHours: parseFloat(form.estimatedHours), dueDate: form.dueDate || null, assigneeId: form.assigneeId || null }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="input-group"><label className="input-label">Title *</label><input className="input" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Task description" /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group"><label className="input-label">Priority</label><select className="input" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>{PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-                <div className="input-group"><label className="input-label">Complexity</label><select className="input" value={form.complexity} onChange={e => setForm({...form, complexity: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group"><label className="input-label">Est. Hours</label><input className="input" type="number" min="0.5" step="0.5" value={form.estimatedHours} onChange={e => setForm({...form, estimatedHours: e.target.value})} /></div>
-                <div className="input-group"><label className="input-label">Due Date</label><input className="input" type="date" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} /></div>
-              </div>
-              <div className="input-group"><label className="input-label">Assignee</label><select className="input" value={form.assigneeId} onChange={e => setForm({...form, assigneeId: e.target.value})}><option value="">Unassigned</option>{employees.map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}</select></div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={createTask.isPending}>{createTask.isPending ? 'Creating...' : 'Create Task'}</button></div>
-            </form>
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create Task">
+        <form onSubmit={e => { e.preventDefault(); createTask.mutate({ title: form.title, priority: form.priority, complexity: form.complexity, estimatedHours: parseFloat(form.estimatedHours), dueDate: form.dueDate || null, assigneeId: form.assigneeId || null }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="input-group"><label className="input-label">Title *</label><input className="input" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Task description" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="input-group"><label className="input-label">Priority</label><select className="input" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>{PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+            <div className="input-group"><label className="input-label">Complexity</label><select className="input" value={form.complexity} onChange={e => setForm({...form, complexity: e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
           </div>
-        </div>
-      )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="input-group"><label className="input-label">Est. Hours</label><input className="input" type="number" min="0.5" step="0.5" value={form.estimatedHours} onChange={e => setForm({...form, estimatedHours: e.target.value})} /></div>
+            <div className="input-group"><label className="input-label">Due Date</label><input className="input" type="date" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} /></div>
+          </div>
+          <div className="input-group"><label className="input-label">Assignee</label><select className="input" value={form.assigneeId} onChange={e => setForm({...form, assigneeId: e.target.value})}><option value="">Unassigned</option>{employees.map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}</select></div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}><button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={createTask.isPending}>{createTask.isPending ? 'Creating...' : 'Create Task'}</button></div>
+        </form>
+      </Modal>
 
-      {/* Edit/View Task Drawer */}
-      {editTask && (
-        <div className="modal-overlay" onClick={() => setEditTask(null)}>
-          <div className="modal" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title" style={{ fontSize: '15px' }}>{editTask.title}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setEditTask(null)}>✕</button>
+      {/* Edit/View Task Modal */}
+      <Modal isOpen={!!editTask} onClose={() => setEditTask(null)} title={editTask?.title || 'Edit Task'} maxWidth="480px">
+        {editTask && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span className={`badge badge-${editTask.priority === 'critical' ? 'danger' : editTask.priority === 'high' ? 'warning' : 'primary'}`}>{editTask.priority}</span>
+              <span className="badge badge-muted">{editTask.complexity} complexity</span>
+              <span className="badge badge-muted">{editTask.estimated_hours}h estimated</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span className={`badge badge-${editTask.priority === 'critical' ? 'danger' : editTask.priority === 'high' ? 'warning' : 'primary'}`}>{editTask.priority}</span>
-                <span className="badge badge-muted">{editTask.complexity} complexity</span>
-                <span className="badge badge-muted">{editTask.estimated_hours}h estimated</span>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Update Status</label>
-                <select className="input" defaultValue={editTask.status} onChange={e => { updateStatus.mutate({ id: editTask.id, status: e.target.value }); setEditTask({ ...editTask, status: e.target.value }) }}>
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            <div className="input-group">
+              <label className="input-label">Update Status</label>
+              <select className="input" defaultValue={editTask.status} onChange={e => { updateStatus.mutate({ id: editTask.id, status: e.target.value }); setEditTask({ ...editTask, status: e.target.value }) }}>
+                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Reassign To</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select className="input" defaultValue={editTask.assignee_id || ''} id="reassign-select">
+                  <option value="">Unassigned</option>
+                  {employees.map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
                 </select>
+                <button className="btn btn-primary btn-sm" onClick={() => { const sel = (document.getElementById('reassign-select') as HTMLSelectElement)?.value; assignTask.mutate({ id: editTask.id, assigneeId: sel }) }}>Assign</button>
               </div>
-              <div className="input-group">
-                <label className="input-label">Reassign To</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select className="input" defaultValue={editTask.assignee_id || ''} id="reassign-select">
-                    <option value="">Unassigned</option>
-                    {employees.map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
-                  </select>
-                  <button className="btn btn-primary btn-sm" onClick={() => { const sel = (document.getElementById('reassign-select') as HTMLSelectElement)?.value; assignTask.mutate({ id: editTask.id, assigneeId: sel }) }}>Assign</button>
-                </div>
-              </div>
-              {editTask.projects && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Project: {editTask.projects.title}</div>}
-              {editTask.due_date && <div style={{ fontSize: '12px', color: new Date(editTask.due_date) < new Date() ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>Due: {format(new Date(editTask.due_date), 'MMM d, yyyy')}</div>}
             </div>
+            {editTask.projects && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Project: {editTask.projects.title}</div>}
+            {editTask.due_date && <div style={{ fontSize: '12px', color: new Date(editTask.due_date) < new Date() ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>Due: {format(new Date(editTask.due_date), 'MMM d, yyyy')}</div>}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }

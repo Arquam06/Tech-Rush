@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Video, Plus, Calendar, Clock, Users, ArrowRight } from 'lucide-react'
+import { Video, Plus, Calendar, ArrowRight } from 'lucide-react'
 import api from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import Modal from '../../components/common/Modal'
 
 const STATUS_COLORS: Record<string, string> = { scheduled: '#6366f1', live: '#10b981', completed: '#06b6d4', cancelled: '#ef4444' }
 
@@ -90,22 +91,32 @@ export default function MeetingsPage() {
         </div>
       )}
 
-      {showCreate && (
-        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h2 className="modal-title">Schedule Meeting</h2><button className="btn btn-ghost btn-icon" onClick={() => setShowCreate(false)}>✕</button></div>
-            <form onSubmit={e => { e.preventDefault(); create.mutate({ title: form.title, description: form.description, scheduledAt: form.scheduledAt || null, duration: parseInt(form.duration) }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="input-group"><label className="input-label">Title *</label><input className="input" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Sprint Planning" /></div>
-              <div className="input-group"><label className="input-label">Description</label><textarea className="input" rows={2} value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ resize: 'vertical' }} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group"><label className="input-label">Date & Time</label><input className="input" type="datetime-local" value={form.scheduledAt} onChange={e => setForm({...form, scheduledAt: e.target.value})} /></div>
-                <div className="input-group"><label className="input-label">Duration (min)</label><input className="input" type="number" value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}><button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create Meeting'}</button></div>
-            </form>
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Schedule Meeting">
+        <form onSubmit={e => { e.preventDefault(); create.mutate({ title: form.title, description: form.description, scheduledAt: form.scheduledAt || null, duration: parseInt(form.duration) }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="input-group">
+            <label className="input-label">Title *</label>
+            <input className="input" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Sprint Planning" />
           </div>
-        </div>
-      )}
+          <div className="input-group">
+            <label className="input-label">Description</label>
+            <textarea className="input" rows={2} value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ resize: 'vertical' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="input-group">
+              <label className="input-label">Date & Time</label>
+              <input className="input" type="datetime-local" value={form.scheduledAt} onChange={e => setForm({...form, scheduledAt: e.target.value})} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Duration (min)</label>
+              <input className="input" type="number" value={form.duration} onChange={e => setForm({...form, duration: e.target.value})} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create Meeting'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

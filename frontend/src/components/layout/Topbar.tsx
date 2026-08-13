@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
 import toast from 'react-hot-toast'
+import { getInitials } from '../../utils/initials'
 
 export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const { employee, logout } = useAuth()
@@ -18,6 +19,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   })
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length
+  const initials = getInitials(employee?.first_name, employee?.last_name, employee?.email)
 
   const handleLogout = async () => {
     try {
@@ -79,7 +81,7 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
           style={{ gap: '8px', padding: '6px 10px' }}
         >
           <div className="avatar avatar-sm">
-            {employee?.first_name?.[0]}{employee?.last_name?.[0]}
+            {initials}
           </div>
           {!showUserMenu && (
             <span style={{ fontSize: '13px' }}>{employee?.first_name}</span>

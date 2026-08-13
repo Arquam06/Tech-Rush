@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Plus, RefreshCw, Bot, ChevronLeft, CheckSquare, Users, Clock, GitBranch, CheckCircle, XCircle } from 'lucide-react'
+import { AlertTriangle, Plus, RefreshCw, ChevronLeft, CheckSquare, Users, CheckCircle, XCircle } from 'lucide-react'
 import api from '../../lib/api'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import Modal from '../../components/common/Modal'
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,7 +14,6 @@ export default function ProjectDetailPage() {
   const [showAddTask, setShowAddTask] = useState(false)
   const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', complexity: 'medium', estimatedHours: '4', dueDate: '' })
   const [recoveryPlan, setRecoveryPlan] = useState<any>(null)
-  const [simResult, setSimResult] = useState<any>(null)
   const [genLoading, setGenLoading] = useState(false)
 
   const { data: project, isLoading } = useQuery({
@@ -56,7 +56,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Back + Header */}
       <div>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/projects')} style={{ marginBottom: '12px' }}>
           <ChevronLeft size={14} /> Projects
@@ -79,7 +78,6 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Risk Banner */}
       {project.risk?.score >= 45 && (
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', padding: '14px 18px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -97,7 +95,6 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Recovery Plan Panel */}
       {recoveryPlan && (
         <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-accent)', borderRadius: '12px', padding: '20px' }}>
           <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '12px', color: 'var(--color-primary-light)' }}>
@@ -127,7 +124,6 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
         {[{ label: 'Total Tasks', value: tasks.length, icon: <CheckSquare size={16} />, color: '#6366f1' }, { label: 'Completed', value: done, icon: <CheckCircle size={16} />, color: '#10b981' }, { label: 'Members', value: members.length, icon: <Users size={16} />, color: '#06b6d4' }, { label: 'Risk Score', value: `${project.risk?.score || 0}%`, icon: <AlertTriangle size={16} />, color: project.risk?.score >= 45 ? '#ef4444' : '#10b981' }].map((s, i) => (
           <div key={i} className="stat-card">
@@ -138,7 +134,6 @@ export default function ProjectDetailPage() {
         ))}
       </div>
 
-      {/* Progress */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 500 }}>Overall Progress</span>
@@ -149,7 +144,6 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Tasks table */}
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '14px' }}>Tasks</div>
         <div className="table-container" style={{ borderRadius: '0 0 12px 12px', border: 'none' }}>
@@ -188,56 +182,47 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Add Task Modal */}
-      {showAddTask && (
-        <div className="modal-overlay" onClick={() => setShowAddTask(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">Add Task</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowAddTask(false)}>✕</button>
-            </div>
-            <form onSubmit={e => { e.preventDefault(); createTask.mutate({ title: taskForm.title, priority: taskForm.priority, complexity: taskForm.complexity, estimatedHours: parseFloat(taskForm.estimatedHours), dueDate: taskForm.dueDate || null, projectId: id }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="input-group">
-                <label className="input-label">Task Title *</label>
-                <input className="input" placeholder="Implement API integration" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} required />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label className="input-label">Priority</label>
-                  <select className="input" value={taskForm.priority} onChange={e => setTaskForm({...taskForm, priority: e.target.value})}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Complexity</label>
-                  <select className="input" value={taskForm.complexity} onChange={e => setTaskForm({...taskForm, complexity: e.target.value})}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label className="input-label">Est. Hours</label>
-                  <input className="input" type="number" min="0.5" step="0.5" value={taskForm.estimatedHours} onChange={e => setTaskForm({...taskForm, estimatedHours: e.target.value})} />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Due Date</label>
-                  <input className="input" type="date" value={taskForm.dueDate} onChange={e => setTaskForm({...taskForm, dueDate: e.target.value})} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddTask(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={createTask.isPending}>{createTask.isPending ? 'Creating...' : 'Create Task'}</button>
-              </div>
-            </form>
+      <Modal isOpen={showAddTask} onClose={() => setShowAddTask(false)} title="Add Task">
+        <form onSubmit={e => { e.preventDefault(); createTask.mutate({ title: taskForm.title, priority: taskForm.priority, complexity: taskForm.complexity, estimatedHours: parseFloat(taskForm.estimatedHours), dueDate: taskForm.dueDate || null, projectId: id }) }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="input-group">
+            <label className="input-label">Task Title *</label>
+            <input className="input" placeholder="Implement API integration" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} required />
           </div>
-        </div>
-      )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="input-group">
+              <label className="input-label">Priority</label>
+              <select className="input" value={taskForm.priority} onChange={e => setTaskForm({...taskForm, priority: e.target.value})}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Complexity</label>
+              <select className="input" value={taskForm.complexity} onChange={e => setTaskForm({...taskForm, complexity: e.target.value})}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="input-group">
+              <label className="input-label">Est. Hours</label>
+              <input className="input" type="number" min="0.5" step="0.5" value={taskForm.estimatedHours} onChange={e => setTaskForm({...taskForm, estimatedHours: e.target.value})} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Due Date</label>
+              <input className="input" type="date" value={taskForm.dueDate} onChange={e => setTaskForm({...taskForm, dueDate: e.target.value})} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowAddTask(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={createTask.isPending}>{createTask.isPending ? 'Creating...' : 'Create Task'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

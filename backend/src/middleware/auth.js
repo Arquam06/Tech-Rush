@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { supabase } from '../lib/supabase.js';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
+import { userStore } from '../lib/userStore.js';
 
 export async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -11,32 +12,65 @@ export async function authMiddleware(req, res, next) {
   const token = authHeader.substring(7);
 
   try {
-    // Verify with Supabase — validates the JWT issued by Supabase Auth
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (isSupabaseConfigured) {
+      const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      if (!error && user) {
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('id, company_id, department_id, role, first_name, last_name, email, avatar_url, is_active, companies(id, name)')
+          .eq('user_id', user.id)
+          .single();
+
+        if (employee) {
+          req.user = user;
+          req.employee = employee;
+          req.companyId = employee.company_id;
+          req.role = employee.role || 'employee';
+          return next();
+        }
+      }
     }
 
-    // Fetch employee profile for role and company info
-    const { data: employee, error: empError } = await supabase
-      .from('employees')
-      .select('id, company_id, department_id, role, first_name, last_name, email, avatar_url, is_active')
-      .eq('user_id', user.id)
-      .single();
+    // Verify local JWT
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
 
-    if (empError && empError.code !== 'PGRST116') {
-      console.error('Employee lookup error:', empError);
+    // Look up exact stored user record from userStore
+    let storedUser = userStore.getUserById(decoded.id) || userStore.getUserByEmail(decoded.email);
+
+    if (storedUser) {
+      req.user = { id: storedUser.id, email: storedUser.email };
+      req.employee = storedUser.employee;
+      req.companyId = storedUser.companyId;
+      req.role = storedUser.role;
+      return next();
     }
 
-    req.user = user;
-    req.employee = employee || null;
-    req.companyId = employee?.company_id || null;
-    req.role = employee?.role || 'employee';
+    // Reconstruct user profile dynamically from JWT payload claims (never use hardcoded demo values!)
+    const firstName = decoded.firstName || (decoded.email ? decoded.email.split('@')[0] : 'User');
+    const lastName = decoded.lastName || '';
+    const companyName = decoded.companyName || 'My Company';
+    const companyId = decoded.companyId || 'comp-default';
+    const role = decoded.role || 'admin';
+
+    req.user = { id: decoded.id, email: decoded.email };
+    req.employee = {
+      id: `emp_${decoded.id}`,
+      company_id: companyId,
+      user_id: decoded.id,
+      email: decoded.email,
+      first_name: firstName,
+      last_name: lastName,
+      role: role,
+      title: role === 'admin' ? 'Administrator' : 'Team Member',
+      companies: { id: companyId, name: companyName },
+    };
+    req.companyId = companyId;
+    req.role = role;
     next();
   } catch (err) {
-    console.error('Auth middleware error:', err);
-    return res.status(401).json({ error: 'Unauthorized: Token verification failed' });
+    console.warn('Auth token verification failed:', err.message);
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
   }
 }
 

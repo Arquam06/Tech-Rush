@@ -21,6 +21,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(form.email, form.password)
+      toast.success('Signed in successfully!')
       navigate('/')
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Login failed. Check your credentials.')
@@ -34,8 +35,10 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await api.post('/auth/register', form)
-      toast.success('Account created! Please log in.')
-      setMode('login')
+      toast.success('Account created!')
+      // Auto-login after registration
+      await login(form.email, form.password)
+      navigate('/')
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Registration failed.')
     } finally {
@@ -161,7 +164,7 @@ export default function LoginPage() {
 
           {mode === 'login' && (
             <div style={{ marginTop: '16px', padding: '12px', background: 'var(--color-bg-input)', borderRadius: '8px', fontSize: '11px', color: 'var(--color-text-muted)' }}>
-              <strong style={{ color: 'var(--color-text-secondary)' }}>Demo:</strong> Register a new account to create your workspace, or use existing demo credentials.
+              <strong style={{ color: 'var(--color-text-secondary)' }}>Demo:</strong> Register a new account to create your workspace, or sign in with any email & password.
             </div>
           )}
         </div>

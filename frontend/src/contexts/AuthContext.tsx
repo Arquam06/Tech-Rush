@@ -2,10 +2,16 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createClient } from '@supabase/supabase-js'
 import api from '../lib/api'
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
+const isSupabaseConfigured = supabaseUrl && !supabaseUrl.includes('your-project') && !supabaseUrl.includes('placeholder')
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: isSupabaseConfigured,
+    autoRefreshToken: isSupabaseConfigured,
+  }
+})
 
 interface Employee {
   id: string
@@ -33,69 +39,114 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null)
-  const [employee, setEmployee] = useState<Employee | null>(null)
-  const [token, setToken] = useState<string | null>(null)
+  const [user, setUser] = useState<any>(() => {
+    const saved = localStorage.getItem('ai_workplace_user')
+    return saved ? JSON.parse(saved) : null
+  })
+  const [employee, setEmployee] = useState<Employee | null>(() => {
+    const saved = localStorage.getItem('ai_workplace_employee')
+    return saved ? JSON.parse(saved) : null
+  })
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('ai_workplace_token') || null
+  })
   const [loading, setLoading] = useState(true)
 
   const fetchEmployee = useCallback(async (accessToken: string) => {
     try {
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
       const res = await api.get('/auth/me')
-      setEmployee(res.data.employee)
+      if (res.data.employee) {
+        setEmployee(res.data.employee)
+        localStorage.setItem('ai_workplace_employee', JSON.stringify(res.data.employee))
+      }
     } catch (err) {
-      console.error('Failed to fetch employee profile:', err)
+      console.warn('Employee profile fetch notice:', err)
     }
   }, [])
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user)
-        setToken(session.access_token)
-        fetchEmployee(session.access_token).finally(() => setLoading(false))
+    // Set token header if exists
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    }
+
+    if (isSupabaseConfigured) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setUser(session.user)
+          setToken(session.access_token)
+          localStorage.setItem('ai_workplace_user', JSON.stringify(session.user))
+          localStorage.setItem('ai_workplace_token', session.access_token)
+          fetchEmployee(session.access_token).finally(() => setLoading(false))
+        } else {
+          setLoading(false)
+        }
+      }).catch(() => setLoading(false))
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          setUser(session.user)
+          setToken(session.access_token)
+          localStorage.setItem('ai_workplace_user', JSON.stringify(session.user))
+          localStorage.setItem('ai_workplace_token', session.access_token)
+          api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
+          fetchEmployee(session.access_token)
+        } else {
+          setUser(null)
+          setEmployee(null)
+          setToken(null)
+          localStorage.removeItem('ai_workplace_user')
+          localStorage.removeItem('ai_workplace_employee')
+          localStorage.removeItem('ai_workplace_token')
+          delete api.defaults.headers.common['Authorization']
+        }
+      })
+
+      return () => subscription.unsubscribe()
+    } else {
+      // Local demo mode using backend JWT/session
+      if (token) {
+        fetchEmployee(token).finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUser(session.user)
-        setToken(session.access_token)
-        api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
-        fetchEmployee(session.access_token)
-      } else {
-        setUser(null)
-        setEmployee(null)
-        setToken(null)
-        delete api.defaults.headers.common['Authorization']
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [fetchEmployee])
+    }
+  }, [fetchEmployee, token])
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password })
-    const { session, employee: emp } = res.data
-    await supabase.auth.setSession(session)
-    setUser(session.user)
-    setToken(session.access_token)
+    const { session, user: authUser, employee: emp } = res.data
+    const accessToken = session?.access_token || res.data.token || 'demo-jwt-token'
+    const currentUser = authUser || { id: emp?.user_id || emp?.id, email }
+
+    if (isSupabaseConfigured && session) {
+      try { await supabase.auth.setSession(session) } catch {}
+    }
+
+    setUser(currentUser)
+    setToken(accessToken)
     setEmployee(emp)
-    api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
+    localStorage.setItem('ai_workplace_user', JSON.stringify(currentUser))
+    localStorage.setItem('ai_workplace_employee', JSON.stringify(emp))
+    localStorage.setItem('ai_workplace_token', accessToken)
+    api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
   }
 
   const logout = async () => {
     try {
       await api.post('/auth/logout')
     } catch {}
-    await supabase.auth.signOut()
+    if (isSupabaseConfigured) {
+      try { await supabase.auth.signOut() } catch {}
+    }
     setUser(null)
     setEmployee(null)
     setToken(null)
+    localStorage.removeItem('ai_workplace_user')
+    localStorage.removeItem('ai_workplace_employee')
+    localStorage.removeItem('ai_workplace_token')
+    delete api.defaults.headers.common['Authorization']
   }
 
   const refreshEmployee = async () => {

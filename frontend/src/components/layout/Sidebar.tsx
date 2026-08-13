@@ -2,9 +2,10 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Users, UserCog,
   Bot, Video, Trophy, Clock, Zap, Settings, ChevronLeft, ChevronRight,
-  Brain, TrendingUp
+  Brain
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { getInitials } from '../../utils/initials'
 
 interface NavItem {
   label: string
@@ -39,6 +40,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const visibleItems = navItems.filter(item =>
     !item.roles || item.roles.includes(employee?.role || 'employee')
   )
+
+  const initials = getInitials(employee?.first_name, employee?.last_name, employee?.email)
 
   return (
     <aside style={{
@@ -128,7 +131,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           gap: '10px',
         }}>
           <div className="avatar avatar-sm">
-            {employee.first_name?.[0]}{employee.last_name?.[0]}
+            {initials}
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
