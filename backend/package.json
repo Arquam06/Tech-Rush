@@ -1,0 +1,14 @@
+{
+  "name": "ai-workplace-os-backend",
+  "version": "1.0.0",
+  "description": "AI Workplace OS - Backend API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
