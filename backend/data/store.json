@@ -1,0 +1,74 @@
+{
+  "users": [
+    {
+      "id": "usr_1786684891361_ho03y",
+      "email": "db.user@persistence.com",
+      "password": "Password123!",
+      "firstName": "Database",
+      "lastName": "User",
+      "role": "admin",
+      "companyName": "Persistence Corp",
+      "companyId": "comp_1786684891361_6milk",
+      "employee": {
+        "id": "emp_1786684891361_uyhxr",
+        "company_id": "comp_1786684891361_6milk",
+        "user_id": "usr_1786684891361_ho03y",
+        "email": "db.user@persistence.com",
+        "first_name": "Database",
+        "last_name": "User",
+        "role": "admin",
+        "title": "Administrator",
+        "is_active": true,
+        "companies": {
+          "id": "comp_1786684891361_6milk",
+          "name": "Persistence Corp",
+          "slug": "persistence-corp"
+        }
+      }
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj_1786684891526_k0616",
+      "company_id": "comp_1786684891361_6milk",
+      "owner_id": "emp_1786684891361_uyhxr",
+      "title": "Persistence Test Project",
+      "description": "Testing database persistence across restarts",
+      "start_date": "2026-08-14T05:21:31.526Z",
+      "end_date": null,
+      "priority": "high",
+      "status": "active",
+      "risk": {
+        "score": 15,
+        "level": "low",
+        "factors": []
+      },
+      "project_members": [
+        {
+          "employee_id": "emp_1786684891361_uyhxr",
+          "employees": {
+            "id": "emp_1786684891361_uyhxr",
+            "company_id": "comp_1786684891361_6milk",
+            "user_id": "usr_1786684891361_ho03y",
+            "email": "db.user@persistence.com",
+            "first_name": "Database",
+            "last_name": "User",
+            "role": "admin",
+            "title": "Administrator",
+            "is_active": true,
+            "companies": {
+              "id": "comp_1786684891361_6milk",
+              "name": "Persistence Corp",
+              "slug": "persistence-corp"
+            }
+          }
+        }
+      ],
+      "tasks": [],
+      "created_at": "2026-08-14T05:21:31.526Z",
+      "updated_at": "2026-08-14T05:21:31.526Z"
+    }
+  ],
+  "tasks": [],
+  "updatedAt": "2026-08-14T05:21:31.526Z"
+}

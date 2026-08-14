@@ -2,48 +2,40 @@ import { Router } from 'express';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { recordHistory } from '../services/historyService.js';
 import { awardContributionPoints } from '../services/contributionService.js';
+import { userStore } from '../lib/userStore.js';
 
 const router = Router();
-
-const demoTasks = [
-  {
-    id: 'tk424242-4242-4242-4242-424242424242',
-    company_id: 'comp-demo-123',
-    project_id: 'p1111111-1111-1111-1111-111111111111',
-    assignee_id: 'emp-demo-123',
-    title: 'Core Architecture Review',
-    description: 'Review system architecture and service boundaries',
-    status: 'in_progress',
-    priority: 'high',
-    complexity: 'high',
-    estimated_hours: 8,
-    due_date: new Date(Date.now() + 2 * 86400000).toISOString(),
-  }
-];
 
 // GET /api/tasks?projectId=&assigneeId=&status=
 router.get('/', async (req, res, next) => {
   try {
     if (isSupabaseConfigured) {
-      let query = supabase
-        .from('tasks')
-        .select(`*, employees!tasks_assignee_id_fkey(id, first_name, last_name, avatar_url), projects(id, title), task_dependencies(depends_on_id)`)
-        .eq('company_id', req.companyId)
-        .order('priority', { ascending: false })
-        .order('due_date', { ascending: true, nullsFirst: false });
+      try {
+        let query = supabase
+          .from('tasks')
+          .select(`*, employees!tasks_assignee_id_fkey(id, first_name, last_name, avatar_url), projects(id, title), task_dependencies(depends_on_id)`)
+          .eq('company_id', req.companyId)
+          .order('priority', { ascending: false })
+          .order('due_date', { ascending: true, nullsFirst: false });
 
-      if (req.query.projectId) query = query.eq('project_id', req.query.projectId);
-      if (req.query.assigneeId) query = query.eq('assignee_id', req.query.assigneeId);
-      if (req.query.status) query = query.eq('status', req.query.status);
+        if (req.query.projectId) query = query.eq('project_id', req.query.projectId);
+        if (req.query.assigneeId) query = query.eq('assignee_id', req.query.assigneeId);
+        if (req.query.status) query = query.eq('status', req.query.status);
 
-      const { data, error } = await query;
-      if (!error && data) return res.json(data);
+        const { data, error } = await query;
+        if (!error && data) return res.json(data);
+      } catch (err) {
+        console.warn('⚠️ Supabase get tasks notice:', err.message);
+      }
     }
-    let list = [...demoTasks];
-    if (req.query.status) list = list.filter(t => t.status === req.query.status);
-    res.json(list);
+    const tasks = userStore.getTasks(req.companyId, {
+      projectId: req.query.projectId,
+      assigneeId: req.query.assigneeId,
+      status: req.query.status,
+    });
+    res.json(tasks);
   } catch (err) {
-    res.json(demoTasks);
+    next(err);
   }
 });
 
@@ -51,22 +43,27 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`*,
-          employees!tasks_assignee_id_fkey(id, first_name, last_name, avatar_url, title),
-          projects(id, title),
-          task_dependencies(depends_on_id, tasks!task_dependencies_depends_on_id_fkey(id, title, status)),
-          task_comments(id, content, created_at, employees(first_name, last_name, avatar_url))
-        `)
-        .eq('id', req.params.id)
-        .single();
-      if (!error && data) return res.json(data);
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select(`*,
+            employees!tasks_assignee_id_fkey(id, first_name, last_name, avatar_url, title),
+            projects(id, title),
+            task_dependencies(depends_on_id, tasks!task_dependencies_depends_on_id_fkey(id, title, status)),
+            task_comments(id, content, created_at, employees(first_name, last_name, avatar_url))
+          `)
+          .eq('id', req.params.id)
+          .single();
+        if (!error && data) return res.json(data);
+      } catch (err) {
+        console.warn('⚠️ Supabase get task by id notice:', err.message);
+      }
     }
-    const found = demoTasks.find(t => t.id === req.params.id) || demoTasks[0];
+    const tasks = userStore.getTasks(req.companyId);
+    const found = tasks.find(t => t.id === req.params.id) || tasks[0] || { id: req.params.id, title: 'Task', status: 'todo' };
     res.json(found);
   } catch (err) {
-    res.json(demoTasks[0]);
+    next(err);
   }
 });
 
@@ -77,8 +74,8 @@ router.post('/', async (req, res, next) => {
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     const newTask = {
-      id: `task_${Date.now()}`,
-      company_id: req.companyId || 'comp-demo-123',
+      id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      company_id: req.companyId || 'comp-default',
       project_id: projectId || null,
       assignee_id: assigneeId || req.employee?.id || null,
       created_by: req.employee?.id,
@@ -89,11 +86,11 @@ router.post('/', async (req, res, next) => {
       employees: req.employee ? { id: req.employee.id, first_name: req.employee.first_name, last_name: req.employee.last_name } : null,
     };
 
-    demoTasks.unshift(newTask);
+    userStore.saveTask(newTask);
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('tasks').insert({
+        const { data: inserted, error } = await supabase.from('tasks').insert({
           company_id: req.companyId,
           project_id: projectId || null,
           assignee_id: assigneeId || null,
@@ -102,8 +99,16 @@ router.post('/', async (req, res, next) => {
           estimated_hours: estimatedHours || 4,
           due_date: dueDate || null,
           status: 'todo',
-        });
-      } catch (e) {}
+        }).select().single();
+
+        if (error) {
+          console.error('❌ Supabase task insert error:', error.message);
+        } else if (inserted) {
+          console.log('✅ [Supabase] Task inserted:', inserted.title);
+        }
+      } catch (e) {
+        console.warn('⚠️ Supabase task insert exception:', e.message);
+      }
     }
 
     res.status(201).json(newTask);
@@ -115,20 +120,19 @@ router.post('/', async (req, res, next) => {
 // PATCH /api/tasks/:id
 router.patch('/:id', async (req, res, next) => {
   try {
-    const taskIndex = demoTasks.findIndex(t => t.id === req.params.id);
-    if (taskIndex !== -1) {
-      const allowed = ['title','description','status','priority','complexity','assignee_id','due_date','estimated_hours'];
-      for (const key of allowed) {
-        if (req.body[key] !== undefined) demoTasks[taskIndex][key] = req.body[key];
-      }
-      return res.json(demoTasks[taskIndex]);
-    }
+    const tasks = userStore.getTasks(req.companyId);
+    const existing = tasks.find(t => t.id === req.params.id);
+    let updated = { ...existing, ...req.body, id: req.params.id };
+    userStore.saveTask(updated);
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.from('tasks').update(req.body).eq('id', req.params.id).select().single();
-      if (!error && data) return res.json(data);
+      try {
+        const { data, error } = await supabase.from('tasks').update(req.body).eq('id', req.params.id).select().single();
+        if (!error && data) updated = data;
+      } catch (e) {}
     }
-    res.json({ id: req.params.id, ...req.body });
+
+    res.json(updated);
   } catch (err) {
     next(err);
   }

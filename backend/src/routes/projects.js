@@ -3,45 +3,35 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { recordHistory } from '../services/historyService.js';
 import { computeProjectRisk } from '../services/riskService.js';
 import { requireRole } from '../middleware/auth.js';
+import { userStore } from '../lib/userStore.js';
 
 const router = Router();
-
-// In-memory fallback projects store for local non-Supabase mode
-const demoProjects = [
-  {
-    id: 'p1111111-1111-1111-1111-111111111111',
-    company_id: 'comp-demo-123',
-    title: 'AI Platform Core',
-    description: 'Next-gen enterprise workplace integration platform',
-    status: 'active',
-    priority: 'high',
-    end_date: new Date(Date.now() + 5 * 86400000).toISOString(),
-    risk: { score: 35, level: 'low', factors: [] },
-    project_members: [],
-    tasks: [],
-  }
-];
 
 // GET /api/projects
 router.get('/', async (req, res, next) => {
   try {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*, employees!projects_owner_id_fkey(first_name, last_name), project_members(employee_id, employees(first_name, last_name, avatar_url))')
-        .eq('company_id', req.companyId)
-        .order('created_at', { ascending: false });
-      if (!error && data) {
-        const withRisk = await Promise.all(data.map(async (p) => {
-          const risk = await computeProjectRisk(p.id, req.companyId);
-          return { ...p, risk };
-        }));
-        return res.json(withRisk);
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*, employees!projects_owner_id_fkey(first_name, last_name), project_members(employee_id, employees(first_name, last_name, avatar_url))')
+          .eq('company_id', req.companyId)
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          const withRisk = await Promise.all(data.map(async (p) => {
+            const risk = await computeProjectRisk(p.id, req.companyId);
+            return { ...p, risk };
+          }));
+          return res.json(withRisk);
+        }
+      } catch (err) {
+        console.warn('⚠️ Supabase get projects notice:', err.message);
       }
     }
-    res.json(demoProjects);
+    const projects = userStore.getProjects(req.companyId);
+    res.json(projects);
   } catch (err) {
-    res.json(demoProjects);
+    next(err);
   }
 });
 
@@ -49,27 +39,40 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('projects')
-        .select(`
-          *,
-          employees!projects_owner_id_fkey(id, first_name, last_name, avatar_url),
-          project_members(employee_id, role, employees(id, first_name, last_name, avatar_url, title)),
-          tasks(id, title, status, priority, complexity, assignee_id, due_date, estimated_hours,
-            employees!tasks_assignee_id_fkey(first_name, last_name, avatar_url)),
-          project_risks(id, description, severity, status, created_at)
-        `)
-        .eq('id', req.params.id)
-        .single();
-      if (!error && data) {
-        const risk = await computeProjectRisk(req.params.id, req.companyId);
-        return res.json({ ...data, risk });
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select(`
+            *,
+            employees!projects_owner_id_fkey(id, first_name, last_name, avatar_url),
+            project_members(employee_id, role, employees(id, first_name, last_name, avatar_url, title)),
+            tasks(id, title, status, priority, complexity, assignee_id, due_date, estimated_hours,
+              employees!tasks_assignee_id_fkey(first_name, last_name, avatar_url)),
+            project_risks(id, description, severity, status, created_at)
+          `)
+          .eq('id', req.params.id)
+          .single();
+        if (!error && data) {
+          const risk = await computeProjectRisk(req.params.id, req.companyId);
+          return res.json({ ...data, risk });
+        }
+      } catch (err) {
+        console.warn('⚠️ Supabase get project by id notice:', err.message);
       }
     }
-    const found = demoProjects.find(p => p.id === req.params.id) || demoProjects[0];
+    const projects = userStore.getProjects(req.companyId);
+    const found = projects.find(p => p.id === req.params.id) || projects[0] || {
+      id: req.params.id,
+      title: 'Default Project',
+      status: 'active',
+      priority: 'medium',
+      risk: { score: 15, level: 'low' },
+      project_members: [],
+      tasks: [],
+    };
     res.json(found);
   } catch (err) {
-    res.json(demoProjects[0]);
+    next(err);
   }
 });
 
@@ -80,33 +83,41 @@ router.post('/', requireRole('admin', 'manager'), async (req, res, next) => {
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
     const newProject = {
-      id: `proj_${Date.now()}`,
-      company_id: req.companyId || 'comp-demo-123',
+      id: `proj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      company_id: req.companyId || 'comp-default',
       owner_id: req.employee?.id,
       title,
-      description,
+      description: description || '',
       start_date: startDate || new Date().toISOString(),
       end_date: endDate || null,
       priority,
       status: 'active',
-      risk: { score: 10, level: 'low', factors: [] },
+      risk: { score: 15, level: 'low', factors: [] },
       project_members: req.employee ? [{ employee_id: req.employee.id, employees: req.employee }] : [],
       tasks: [],
     };
 
-    demoProjects.unshift(newProject);
+    userStore.saveProject(newProject);
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('projects').insert({
+        const { data: inserted, error } = await supabase.from('projects').insert({
           company_id: req.companyId,
           owner_id: req.employee?.id,
           title, description,
           start_date: startDate,
           end_date: endDate,
           priority, status: 'active',
-        });
-      } catch (e) {}
+        }).select().single();
+
+        if (error) {
+          console.error('❌ Supabase project insert error:', error.message);
+        } else if (inserted) {
+          console.log('✅ [Supabase] Project inserted:', inserted.title);
+        }
+      } catch (e) {
+        console.warn('⚠️ Supabase project insert exception:', e.message);
+      }
     }
 
     res.status(201).json(newProject);
