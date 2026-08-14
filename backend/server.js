@@ -27,9 +27,25 @@ validateEnv();
 
 const app = express();
 const httpServer = createServer(app);
+
+const frontendUrl = process.env.FRONTEND_URL || 'https://tech-rush-frontend.onrender.com';
+
+const allowedOrigins = [
+  'https://tech-rush-frontend.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3001',
+  'http://127.0.0.1:5173',
+  frontendUrl,
+].filter(Boolean);
+
 const io = new SocketIO(httpServer, {
   cors: {
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   },
@@ -40,23 +56,39 @@ app.set('io', io);
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'AI Workplace OS API is running',
-    health: '/api/health'
+    service: 'AI Workplace OS API',
+    message: 'Backend operational',
+    timestamp: new Date().toISOString(),
+    frontend: frontendUrl,
   });
 });
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'AI Workplace OS API' });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'AI Workplace OS API',
+  });
 });
 
 // Public routes
@@ -82,9 +114,10 @@ setupSocketHandlers(io);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`\n🚀 AI Workplace OS API running on http://localhost:${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 AI Workplace OS API running on http://0.0.0.0:${PORT}`);
   console.log(`📡 Socket.IO ready`);
+  console.log(`🌐 Allowed Frontend: ${frontendUrl}`);
   console.log(`🤖 Gemini AI: ${process.env.GEMINI_API_KEY ? 'Configured' : 'NOT configured'}`);
   console.log(`🗄️  Supabase: ${process.env.SUPABASE_URL ? 'Configured' : 'NOT configured'}\n`);
 });
