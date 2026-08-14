@@ -114,9 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('ai_workplace_user', JSON.stringify(session.user))
           localStorage.setItem('ai_workplace_token', session.access_token)
           api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
-          fetchEmployee(session.access_token)
+          fetchEmployee(session.access_token).finally(() => setLoading(false))
         } else {
           clearAuthData()
+          setLoading(false)
         }
       })
 
@@ -136,17 +137,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const accessToken = session?.access_token || jwtToken || 'demo-jwt-token'
     const currentUser = authUser || { id: emp?.user_id || emp?.id, email }
 
+    // Set authorization header immediately
+    api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+
+    // Synchronously store credentials
+    localStorage.setItem('ai_workplace_user', JSON.stringify(currentUser))
+    if (emp) localStorage.setItem('ai_workplace_employee', JSON.stringify(emp))
+    localStorage.setItem('ai_workplace_token', accessToken)
+
     if (isSupabaseConfigured && session) {
       try { await supabase.auth.setSession(session) } catch {}
     }
 
+    // Synchronously update context state
     setUser(currentUser)
+    setEmployee(emp || null)
     setToken(accessToken)
-    setEmployee(emp)
-    localStorage.setItem('ai_workplace_user', JSON.stringify(currentUser))
-    localStorage.setItem('ai_workplace_employee', JSON.stringify(emp))
-    localStorage.setItem('ai_workplace_token', accessToken)
-    api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+    setLoading(false)
   }
 
   const logout = async () => {
@@ -157,6 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try { await supabase.auth.signOut() } catch {}
     }
     clearAuthData()
+    setLoading(false)
   }
 
   const refreshEmployee = async () => {

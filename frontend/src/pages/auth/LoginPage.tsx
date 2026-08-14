@@ -22,7 +22,7 @@ export default function LoginPage() {
     try {
       await login(form.email, form.password)
       toast.success('Signed in successfully!')
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Login failed. Check your credentials.')
     } finally {
@@ -38,7 +38,7 @@ export default function LoginPage() {
       toast.success('Account created!')
       // Auto-login after registration
       await login(form.email, form.password)
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Registration failed.')
     } finally {
