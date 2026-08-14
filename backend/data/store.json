@@ -25,6 +25,58 @@
           "slug": "persistence-corp"
         }
       }
+    },
+    {
+      "id": "usr_1786688762055_a93u4",
+      "email": "test.judge@aiworkplace.os",
+      "password": "Password123!",
+      "firstName": "Judge",
+      "lastName": "Tester",
+      "role": "admin",
+      "companyName": "Vercel Deployment Verification Inc",
+      "companyId": "comp_1786688762055_d170d",
+      "employee": {
+        "id": "emp_1786688762055_nts12",
+        "company_id": "comp_1786688762055_d170d",
+        "user_id": "usr_1786688762055_a93u4",
+        "email": "test.judge@aiworkplace.os",
+        "first_name": "Judge",
+        "last_name": "Tester",
+        "role": "admin",
+        "title": "Administrator",
+        "is_active": true,
+        "companies": {
+          "id": "comp_1786688762055_d170d",
+          "name": "Vercel Deployment Verification Inc",
+          "slug": "vercel-deployment-verification-inc"
+        }
+      }
+    },
+    {
+      "id": "usr_1786690136649_49mst",
+      "email": "marquamkamal7@gmail.com",
+      "password": "066710",
+      "firstName": "M Arquam",
+      "lastName": "Kamal",
+      "role": "admin",
+      "companyName": "Microsoft",
+      "companyId": "comp_1786690136649_gn98s",
+      "employee": {
+        "id": "emp_1786690136649_b5bcc",
+        "company_id": "comp_1786690136649_gn98s",
+        "user_id": "usr_1786690136649_49mst",
+        "email": "marquamkamal7@gmail.com",
+        "first_name": "M Arquam",
+        "last_name": "Kamal",
+        "role": "admin",
+        "title": "Administrator",
+        "is_active": true,
+        "companies": {
+          "id": "comp_1786690136649_gn98s",
+          "name": "Microsoft",
+          "slug": "microsoft"
+        }
+      }
     }
   ],
   "projects": [
@@ -70,5 +122,5 @@
     }
   ],
   "tasks": [],
-  "updatedAt": "2026-08-14T05:21:31.526Z"
+  "updatedAt": "2026-08-14T06:48:56.650Z"
 }

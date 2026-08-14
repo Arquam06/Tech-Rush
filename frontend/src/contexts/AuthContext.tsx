@@ -2,16 +2,30 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { createClient } from '@supabase/supabase-js'
 import api from '../lib/api'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key'
-const isSupabaseConfigured = supabaseUrl && !supabaseUrl.includes('your-project') && !supabaseUrl.includes('placeholder')
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  supabaseAnonKey.startsWith('eyJ') &&
+  !supabaseUrl.includes('your-project') &&
+  !supabaseUrl.includes('placeholder')
+)
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: isSupabaseConfigured,
-    autoRefreshToken: isSupabaseConfigured,
+let supabase: any = null
+if (isSupabaseConfigured) {
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    })
+  } catch (err) {
+    console.warn('Supabase client initialization notice:', err)
+    supabase = null
   }
-})
+}
 
 interface Employee {
   id: string
@@ -94,8 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     }
 
-    if (isSupabaseConfigured) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getSession().then(({ data: { session } }: any) => {
         if (session) {
           setUser(session.user)
           setToken(session.access_token)
@@ -107,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }).catch(() => setLoading(false))
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
         if (session) {
           setUser(session.user)
           setToken(session.access_token)
@@ -145,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (emp) localStorage.setItem('ai_workplace_employee', JSON.stringify(emp))
     localStorage.setItem('ai_workplace_token', accessToken)
 
-    if (isSupabaseConfigured && session) {
+    if (isSupabaseConfigured && session && supabase) {
       try { await supabase.auth.setSession(session) } catch {}
     }
 
@@ -160,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.post('/auth/logout')
     } catch {}
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && supabase) {
       try { await supabase.auth.signOut() } catch {}
     }
     clearAuthData()
