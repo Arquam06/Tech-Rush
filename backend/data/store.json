@@ -77,9 +77,115 @@
           "slug": "microsoft"
         }
       }
+    },
+    {
+      "id": "usr_1786697440265_cqdlb",
+      "email": "judge_feat_1786697440223@aiworkplace.os",
+      "password": "Password123!",
+      "firstName": "Judge",
+      "lastName": "FeatureTest",
+      "role": "admin",
+      "companyName": "Feature Corp",
+      "companyId": "comp_1786697440265_2l7y4",
+      "employee": {
+        "id": "emp_1786697440265_gt7k3",
+        "company_id": "comp_1786697440265_2l7y4",
+        "user_id": "usr_1786697440265_cqdlb",
+        "email": "judge_feat_1786697440223@aiworkplace.os",
+        "first_name": "Judge",
+        "last_name": "FeatureTest",
+        "role": "admin",
+        "title": "Administrator",
+        "is_active": true,
+        "companies": {
+          "id": "comp_1786697440265_2l7y4",
+          "name": "Feature Corp",
+          "slug": "feature-corp"
+        }
+      }
     }
   ],
   "projects": [
+    {
+      "id": "proj_1786697440286_4kff7",
+      "company_id": "comp_1786697440265_2l7y4",
+      "owner_id": "emp_1786697440265_gt7k3",
+      "title": "Project Beta Persistence",
+      "description": "Testing persistence of project B",
+      "start_date": "2026-08-14T08:50:40.286Z",
+      "end_date": null,
+      "priority": "medium",
+      "status": "active",
+      "risk": {
+        "score": 15,
+        "level": "low",
+        "factors": []
+      },
+      "project_members": [
+        {
+          "employee_id": "emp_1786697440265_gt7k3",
+          "employees": {
+            "id": "emp_1786697440265_gt7k3",
+            "company_id": "comp_1786697440265_2l7y4",
+            "user_id": "usr_1786697440265_cqdlb",
+            "email": "judge_feat_1786697440223@aiworkplace.os",
+            "first_name": "Judge",
+            "last_name": "FeatureTest",
+            "role": "admin",
+            "title": "Administrator",
+            "is_active": true,
+            "companies": {
+              "id": "comp_1786697440265_2l7y4",
+              "name": "Feature Corp",
+              "slug": "feature-corp"
+            }
+          }
+        }
+      ],
+      "tasks": [],
+      "created_at": "2026-08-14T08:50:40.286Z",
+      "updated_at": "2026-08-14T08:50:40.286Z"
+    },
+    {
+      "id": "proj_1786697440281_e5bav",
+      "company_id": "comp_1786697440265_2l7y4",
+      "owner_id": "emp_1786697440265_gt7k3",
+      "title": "Project Alpha Persistence",
+      "description": "Testing persistence of project A",
+      "start_date": "2026-08-14T08:50:40.281Z",
+      "end_date": null,
+      "priority": "high",
+      "status": "active",
+      "risk": {
+        "score": 15,
+        "level": "low",
+        "factors": []
+      },
+      "project_members": [
+        {
+          "employee_id": "emp_1786697440265_gt7k3",
+          "employees": {
+            "id": "emp_1786697440265_gt7k3",
+            "company_id": "comp_1786697440265_2l7y4",
+            "user_id": "usr_1786697440265_cqdlb",
+            "email": "judge_feat_1786697440223@aiworkplace.os",
+            "first_name": "Judge",
+            "last_name": "FeatureTest",
+            "role": "admin",
+            "title": "Administrator",
+            "is_active": true,
+            "companies": {
+              "id": "comp_1786697440265_2l7y4",
+              "name": "Feature Corp",
+              "slug": "feature-corp"
+            }
+          }
+        }
+      ],
+      "tasks": [],
+      "created_at": "2026-08-14T08:50:40.281Z",
+      "updated_at": "2026-08-14T08:50:40.281Z"
+    },
     {
       "id": "proj_1786684891526_k0616",
       "company_id": "comp_1786684891361_6milk",
@@ -121,6 +227,27 @@
       "updated_at": "2026-08-14T05:21:31.526Z"
     }
   ],
-  "tasks": [],
-  "updatedAt": "2026-08-14T06:48:56.650Z"
+  "tasks": [
+    {
+      "id": "task_1786697440308_7e2zo",
+      "company_id": "comp_1786697440265_2l7y4",
+      "project_id": "proj_1786697440281_e5bav",
+      "assignee_id": "emp_1786697440265_gt7k3",
+      "created_by": "emp_1786697440265_gt7k3",
+      "title": "Build Database Layer",
+      "priority": "high",
+      "complexity": "medium",
+      "estimated_hours": 6,
+      "due_date": null,
+      "status": "in_progress",
+      "employees": {
+        "id": "emp_1786697440265_gt7k3",
+        "first_name": "Judge",
+        "last_name": "FeatureTest"
+      },
+      "created_at": "2026-08-14T08:50:40.308Z",
+      "updated_at": "2026-08-14T08:50:40.314Z"
+    }
+  ],
+  "updatedAt": "2026-08-14T08:50:40.320Z"
 }

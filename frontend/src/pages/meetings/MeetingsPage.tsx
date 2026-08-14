@@ -51,7 +51,15 @@ export default function MeetingsPage() {
                 {m.scheduled_at && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '8px' }}><Calendar size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} />{format(new Date(m.scheduled_at), 'MMM d, h:mm a')}</div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '4px' }}>{(m.meeting_participants || []).slice(0, 4).map((p: any, i: number) => <div key={i} className="avatar avatar-sm">{p.employees?.first_name?.[0]}</div>)}</div>
-                  <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); navigate(`/meetings/${m.id}`) }}><ArrowRight size={13} /> Join</button>
+                  <button className="btn btn-primary btn-sm" onClick={e => {
+                    e.stopPropagation();
+                    const url = m.meeting_url || m.meetingUrl;
+                    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                      window.open(url, '_blank');
+                    } else {
+                      navigate(`/meetings/${m.id}`);
+                    }
+                  }}><ArrowRight size={13} /> Join</button>
                 </div>
               </div>
             ))}
