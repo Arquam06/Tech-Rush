@@ -126,4 +126,52 @@ router.post('/', requireRole('admin', 'manager'), async (req, res, next) => {
   }
 });
 
+// PUT & PATCH /api/projects/:id
+const updateProjectHandler = async (req, res, next) => {
+  try {
+    const allowed = ['title', 'description', 'status', 'priority', 'end_date', 'start_date'];
+    const updates = { updated_at: new Date().toISOString() };
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    const projects = userStore.getProjects(req.companyId);
+    const existing = projects.find(p => p.id === req.params.id);
+    let updated = { ...existing, ...updates, id: req.params.id };
+    userStore.saveProject(updated);
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.from('projects').update(updates).eq('id', req.params.id).select().single();
+        if (!error && data) updated = data;
+      } catch (e) {}
+    }
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.put('/:id', requireRole('admin', 'manager'), updateProjectHandler);
+router.patch('/:id', requireRole('admin', 'manager'), updateProjectHandler);
+
+// DELETE /api/projects/:id
+router.delete('/:id', requireRole('admin', 'manager'), async (req, res, next) => {
+  try {
+    userStore.projects = userStore.projects.filter(p => p.id !== req.params.id);
+    userStore.saveToDisk();
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('projects').delete().eq('id', req.params.id);
+      } catch (e) {}
+    }
+
+    res.json({ message: 'Project deleted successfully', id: req.params.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
