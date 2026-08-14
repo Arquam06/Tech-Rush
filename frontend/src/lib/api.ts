@@ -1,15 +1,22 @@
 import axios from 'axios'
 
 const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
+  let url = import.meta.env.VITE_API_URL
+
+  if (!url) {
+    if (import.meta.env.PROD || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
+      url = 'https://tech-rush-backend.onrender.com/api'
+    } else {
+      url = 'http://localhost:3001/api'
+    }
   }
 
-  if (import.meta.env.PROD || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')) {
-    return 'https://tech-rush-backend.onrender.com/api'
+  url = url.trim()
+  if (!url.endsWith('/api') && !url.endsWith('/api/')) {
+    url = url.replace(/\/$/, '') + '/api'
   }
 
-  return 'http://localhost:3001/api'
+  return url
 }
 
 export const API_BASE_URL = getApiBaseUrl()

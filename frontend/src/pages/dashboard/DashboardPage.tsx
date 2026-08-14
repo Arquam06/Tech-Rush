@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, TrendingUp, CheckSquare, FolderKanban, Users, Zap, ArrowRight, Clock, Target, Brain } from 'lucide-react'
+import { AlertTriangle, FolderKanban, CheckSquare, Users, Zap, ArrowRight, Clock, Target, Brain } from 'lucide-react'
 import api from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer } from 'recharts'
 import { format } from 'date-fns'
 
 function StatCard({ label, value, icon, color, subtitle }: any) {
@@ -32,17 +32,46 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const isManager = ['admin', 'manager', 'hr'].includes(employee?.role || '')
 
-  const { data: stats } = useQuery({ queryKey: ['admin-stats'], queryFn: () => api.get('/admin/stats').then(r => r.data) })
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => api.get('/projects').then(r => r.data) })
-  const { data: myTasks = [] } = useQuery({ queryKey: ['my-tasks'], queryFn: () => api.get(`/tasks?assigneeId=${employee?.id}`).then(r => r.data), enabled: !!employee?.id })
-  const { data: history = [] } = useQuery({ queryKey: ['history-recent'], queryFn: () => api.get('/history?limit=8').then(r => r.data.data) })
-  const { data: contributions = [] } = useQuery({ queryKey: ['contributions'], queryFn: () => api.get('/contributions').then(r => r.data) })
-  const { data: myContrib } = useQuery({ queryKey: ['my-contrib', employee?.id], queryFn: () => api.get(`/contributions/employee/${employee?.id}`).then(r => r.data), enabled: !!employee?.id })
-  const { data: rewards = [] } = useQuery({ queryKey: ['rewards'], queryFn: () => api.get('/contributions/rewards').then(r => r.data) })
+  const { data: stats } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: () => api.get('/admin/stats').then(r => r.data).catch(() => ({}))
+  })
 
-  const atRiskProjects = projects.filter((p: any) => p.risk?.score >= 45)
-  const myPendingTasks = myTasks.filter((t: any) => t.status !== 'done')
-  const nextReward = rewards.find((r: any) => r.points_required > (myContrib?.total_points || 0))
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
+  })
+
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ['my-tasks'],
+    queryFn: () => api.get(`/tasks?assigneeId=${employee?.id}`).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    enabled: !!employee?.id
+  })
+
+  const { data: historyData = [] } = useQuery({
+    queryKey: ['history-recent'],
+    queryFn: () => api.get('/history?limit=8').then(r => Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : [])).catch(() => [])
+  })
+
+  const { data: myContrib } = useQuery({
+    queryKey: ['my-contrib', employee?.id],
+    queryFn: () => api.get(`/contributions/employee/${employee?.id}`).then(r => r.data).catch(() => null),
+    enabled: !!employee?.id
+  })
+
+  const { data: rewards = [] } = useQuery({
+    queryKey: ['rewards'],
+    queryFn: () => api.get('/contributions/rewards').then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
+  })
+
+  const safeProjects = Array.isArray(projects) ? projects : []
+  const safeTasks = Array.isArray(myTasks) ? myTasks : []
+  const safeRewards = Array.isArray(rewards) ? rewards : []
+  const safeHistory = Array.isArray(historyData) ? historyData : []
+
+  const atRiskProjects = safeProjects.filter((p: any) => p.risk?.score >= 45)
+  const myPendingTasks = safeTasks.filter((t: any) => t.status !== 'done')
+  const nextReward = safeRewards.find((r: any) => r.points_required > (myContrib?.total_points || 0))
   const progressToNext = nextReward ? Math.round(((myContrib?.total_points || 0) / nextReward.points_required) * 100) : 100
 
   // Team health radar data
@@ -54,7 +83,7 @@ export default function DashboardPage() {
     { subject: 'Collab', value: 85 },
   ]
 
-  const actionHistory = (history || []).slice(0, 6)
+  const actionHistory = safeHistory.slice(0, 6)
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -62,7 +91,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '4px' }}>
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {employee?.first_name} 👋
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {employee?.first_name || 'Team Member'} 👋
           </h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
             {format(new Date(), 'EEEE, d MMMM yyyy')}
@@ -99,9 +128,9 @@ export default function DashboardPage() {
       {/* Stats Row */}
       {isManager && stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-          <StatCard label="Total Employees" value={stats.totalEmployees} icon={<Users size={18} />} color="#6366f1" />
-          <StatCard label="Active Projects" value={stats.activeProjects} icon={<FolderKanban size={18} />} color="#06b6d4" />
-          <StatCard label="Total Tasks" value={stats.totalTasks} icon={<CheckSquare size={18} />} color="#10b981" subtitle={`${stats.completedTasks} completed`} />
+          <StatCard label="Total Employees" value={stats.totalEmployees || 1} icon={<Users size={18} />} color="#6366f1" />
+          <StatCard label="Active Projects" value={stats.activeProjects || 0} icon={<FolderKanban size={18} />} color="#06b6d4" />
+          <StatCard label="Total Tasks" value={stats.totalTasks || 0} icon={<CheckSquare size={18} />} color="#10b981" subtitle={`${stats.completedTasks || 0} completed`} />
           <StatCard label="At Risk" value={atRiskProjects.length} icon={<AlertTriangle size={18} />} color="#ef4444" />
         </div>
       )}
@@ -116,7 +145,7 @@ export default function DashboardPage() {
               <button className="btn btn-ghost btn-sm" onClick={() => navigate('/projects')}>View all</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {projects.slice(0, 5).map((p: any) => (
+              {safeProjects.slice(0, 5).map((p: any) => (
                 <div key={p.id} onClick={() => navigate(`/projects/${p.id}`)} style={{
                   padding: '12px', background: 'var(--color-bg-elevated)', borderRadius: '8px',
                   cursor: 'pointer', transition: 'all 0.15s', border: '1px solid var(--color-border)',
@@ -130,7 +159,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {projects.length === 0 && (
+              {safeProjects.length === 0 && (
                 <div className="empty-state" style={{ padding: '30px' }}>
                   <FolderKanban size={32} color="var(--color-text-muted)" />
                   <p>No projects yet</p>
@@ -225,14 +254,14 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
               {actionHistory.map((log: any, i: number) => (
-                <div key={log.id} className="timeline-item" style={{ paddingLeft: '4px' }}>
+                <div key={log.id || i} className="timeline-item" style={{ paddingLeft: '4px' }}>
                   <div className="timeline-dot" style={{ width: '24px', height: '24px' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }} />
                   </div>
                   <div style={{ flex: 1, paddingTop: '4px' }}>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>{log.description}</div>
                     <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                      {format(new Date(log.created_at), 'MMM d, h:mm a')}
+                      {log.created_at ? format(new Date(log.created_at), 'MMM d, h:mm a') : 'Recently'}
                     </div>
                   </div>
                 </div>

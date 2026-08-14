@@ -38,24 +38,7 @@ const allowedOrigins = [
   frontendUrl,
 ].filter(Boolean);
 
-const io = new SocketIO(httpServer, {
-  cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true,
-  },
-});
-
-app.set('io', io);
-
-// Middleware
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.onrender.com')) {
       return callback(null, true);
@@ -65,7 +48,18 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}));
+};
+
+const io = new SocketIO(httpServer, {
+  cors: corsOptions,
+});
+
+app.set('io', io);
+
+// Middleware
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));

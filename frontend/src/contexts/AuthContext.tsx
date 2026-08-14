@@ -40,17 +40,34 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(() => {
-    const saved = localStorage.getItem('ai_workplace_user')
-    return saved ? JSON.parse(saved) : null
+    try {
+      const saved = localStorage.getItem('ai_workplace_user')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
   })
+
   const [employee, setEmployee] = useState<Employee | null>(() => {
-    const saved = localStorage.getItem('ai_workplace_employee')
-    return saved ? JSON.parse(saved) : null
+    try {
+      const saved = localStorage.getItem('ai_workplace_employee')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
   })
+
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem('ai_workplace_token') || null
   })
+
   const [loading, setLoading] = useState(true)
+
+  const clearAuthData = useCallback(() => {
+    setUser(null)
+    setEmployee(null)
+    setToken(null)
+    localStorage.removeItem('ai_workplace_user')
+    localStorage.removeItem('ai_workplace_employee')
+    localStorage.removeItem('ai_workplace_token')
+    delete api.defaults.headers.common['Authorization']
+  }, [])
 
   const fetchEmployee = useCallback(async (accessToken: string) => {
     try {
@@ -60,13 +77,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setEmployee(res.data.employee)
         localStorage.setItem('ai_workplace_employee', JSON.stringify(res.data.employee))
       }
-    } catch (err) {
+      if (res.data.user) {
+        setUser(res.data.user)
+        localStorage.setItem('ai_workplace_user', JSON.stringify(res.data.user))
+      }
+    } catch (err: any) {
       console.warn('Employee profile fetch notice:', err)
+      if (err.response?.status === 401) {
+        clearAuthData()
+      }
     }
-  }, [])
+  }, [clearAuthData])
 
   useEffect(() => {
-    // Set token header if exists
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     }
@@ -93,31 +116,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           api.defaults.headers.common['Authorization'] = `Bearer ${session.access_token}`
           fetchEmployee(session.access_token)
         } else {
-          setUser(null)
-          setEmployee(null)
-          setToken(null)
-          localStorage.removeItem('ai_workplace_user')
-          localStorage.removeItem('ai_workplace_employee')
-          localStorage.removeItem('ai_workplace_token')
-          delete api.defaults.headers.common['Authorization']
+          clearAuthData()
         }
       })
 
       return () => subscription.unsubscribe()
     } else {
-      // Local demo mode using backend JWT/session
       if (token) {
         fetchEmployee(token).finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
     }
-  }, [fetchEmployee, token])
+  }, [fetchEmployee, token, clearAuthData])
 
   const login = async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password })
-    const { session, user: authUser, employee: emp } = res.data
-    const accessToken = session?.access_token || res.data.token || 'demo-jwt-token'
+    const { session, user: authUser, employee: emp, token: jwtToken } = res.data
+    const accessToken = session?.access_token || jwtToken || 'demo-jwt-token'
     const currentUser = authUser || { id: emp?.user_id || emp?.id, email }
 
     if (isSupabaseConfigured && session) {
@@ -140,13 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured) {
       try { await supabase.auth.signOut() } catch {}
     }
-    setUser(null)
-    setEmployee(null)
-    setToken(null)
-    localStorage.removeItem('ai_workplace_user')
-    localStorage.removeItem('ai_workplace_employee')
-    localStorage.removeItem('ai_workplace_token')
-    delete api.defaults.headers.common['Authorization']
+    clearAuthData()
   }
 
   const refreshEmployee = async () => {
